@@ -2,6 +2,7 @@ import Foundation
 import AppKit
 import AVFoundation
 import Observation
+import os
 
 @Observable
 final class ThumbnailGenerator {
@@ -13,7 +14,11 @@ final class ThumbnailGenerator {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let dir = support.appendingPathComponent("livewall/thumbnails", isDirectory: true)
         self.cacheDirectory = dir
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        } catch {
+            AppLogger.thumbnail.error("Could not create thumbnail cache directory: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     func generateThumbnail(for videoURL: URL, wallpaperID: String) async -> URL? {
@@ -39,7 +44,7 @@ final class ThumbnailGenerator {
                 return cachedPath
             }
         } catch {
-            print("Thumbnail generation failed: \(error)")
+            AppLogger.thumbnail.error("Thumbnail generation failed for \(wallpaperID, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
 
         return nil

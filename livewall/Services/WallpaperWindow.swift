@@ -1,10 +1,12 @@
 import AppKit
 import AVFoundation
+import os
 
 final class WallpaperPlayerView: NSView {
     private var playerLayer: AVPlayerLayer?
     private var player: AVPlayer?
     private var notificationObserver: NSObjectProtocol?
+    private var statusObservation: NSKeyValueObservation?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -46,6 +48,27 @@ final class WallpaperPlayerView: NSView {
             }
         }
 
+        // Observe the item's playback readiness so we can surface failures.
+        // Token is stored as a property so the observation stays alive.
+        statusObservation = playerItem.observe(\.status, options: [.new]) { item, _ in
+            switch item.status {
+            case .failed:
+                let message = item.error?.localizedDescription ?? "Unknown playback error"
+                AppLogger.playback.error("Playback failed: \(message, privacy: .public)")
+                AppErrorPresenter.report(
+                    title: "Playback Failed",
+                    message: message,
+                    recoverySuggestion: "The file may be corrupt or use an unsupported codec."
+                )
+            case .readyToPlay:
+                AppLogger.playback.debug("Player item ready")
+            case .unknown:
+                break
+            @unknown default:
+                break
+            }
+        }
+
         newPlayer.play()
     }
 
@@ -62,6 +85,8 @@ final class WallpaperPlayerView: NSView {
             NotificationCenter.default.removeObserver(observer)
             notificationObserver = nil
         }
+        statusObservation?.invalidate()
+        statusObservation = nil
         player?.pause()
         playerLayer?.player = nil
         player = nil

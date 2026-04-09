@@ -4,7 +4,6 @@ import UniformTypeIdentifiers
 struct ImportView: View {
     @State private var isShowingFilePicker = false
     @State private var isImporting = false
-    @State private var importError: String?
     @Environment(\.dismiss) private var dismiss
 
     private let catalog = WallpaperCatalog.shared
@@ -45,14 +44,6 @@ struct ImportView: View {
                     .controlSize(.large)
                     .keyboardShortcut(.defaultAction)
                 }
-
-                if let error = importError {
-                    Label(error, systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                }
             }
             .padding(40)
             .frame(maxWidth: 460)
@@ -73,7 +64,11 @@ struct ImportView: View {
                         await importFile(url)
                     }
                 case .failure(let error):
-                    importError = error.localizedDescription
+                    AppErrorPresenter.report(
+                        title: "Couldn't Open File",
+                        message: error.localizedDescription,
+                        recoverySuggestion: "Try selecting a different file."
+                    )
                 }
             }
         }
@@ -81,23 +76,19 @@ struct ImportView: View {
 
     private func importFile(_ url: URL) async {
         isImporting = true
-        importError = nil
+        defer { isImporting = false }
 
         let accessGranted = url.startAccessingSecurityScopedResource()
-
         defer {
             if accessGranted {
                 url.stopAccessingSecurityScopedResource()
             }
         }
 
+        // addLocalWallpaper surfaces errors via the global presenter on failure.
         if let wallpaper = await catalog.addLocalWallpaper(fileURL: url) {
             engine.apply(wallpaper, scope: .allDisplays)
-            isImporting = false
             dismiss()
-        } else {
-            importError = "Failed to import wallpaper. Please try another file."
-            isImporting = false
         }
     }
 }

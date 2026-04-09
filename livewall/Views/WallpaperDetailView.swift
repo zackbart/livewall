@@ -3,11 +3,17 @@ import AVKit
 
 struct WallpaperDetailView: View {
     let wallpaper: Wallpaper
+    var onRequestClose: (() -> Void)? = nil
 
     @ObservedObject private var engine = WallpaperEngine.shared
     @ObservedObject private var downloadManager = DownloadManager.shared
+    @ObservedObject private var catalog = WallpaperCatalog.shared
 
     private let displayManager = DisplayManager()
+
+    private var isStale: Bool {
+        catalog.staleLocalWallpaperIDs.contains(wallpaper.id)
+    }
 
     private var previewURL: URL? {
         if let local = wallpaper.localFileURL {
@@ -54,11 +60,52 @@ struct WallpaperDetailView: View {
 
                 Divider()
 
-                displayPicker
+                if isStale {
+                    staleNotice
+                } else {
+                    displayPicker
+                }
             }
             .padding(20)
         }
         .frame(minWidth: 440, minHeight: 520)
+    }
+
+    // MARK: - Stale notice
+
+    private var staleNotice: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("File is missing")
+                        .font(.headline)
+                    Text("This wallpaper was moved or deleted from your Mac since you imported it. You can remove the entry from your library.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.orange)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassEffect(.regular.tint(.orange.opacity(0.2)), in: .rect(cornerRadius: 12))
+
+            HStack {
+                Spacer()
+                Button {
+                    catalog.removeLocalWallpaper(wallpaper)
+                    onRequestClose?()
+                } label: {
+                    Label("Remove Missing Entry", systemImage: "trash")
+                }
+                .buttonStyle(.glassProminent)
+                .controlSize(.regular)
+                .keyboardShortcut(.defaultAction)
+            }
+        }
     }
 
     // MARK: - Hero preview

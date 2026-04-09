@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import os
 
 enum DownloadState: Equatable {
     case idle
@@ -34,7 +35,11 @@ final class DownloadManager: ObservableObject {
     init() {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         self.downloadDirectory = support.appendingPathComponent("livewall/wallpapers", isDirectory: true)
-        try? FileManager.default.createDirectory(at: downloadDirectory, withIntermediateDirectories: true)
+        do {
+            try FileManager.default.createDirectory(at: downloadDirectory, withIntermediateDirectories: true)
+        } catch {
+            AppLogger.download.error("Could not create download directory: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     func download(wallpaper: Wallpaper) async {
@@ -48,12 +53,15 @@ final class DownloadManager: ObservableObject {
         }
 
         downloads[wallpaper.id] = .downloading(progress: 0)
+        AppLogger.download.info("Starting download \(wallpaper.id, privacy: .public)")
 
         do {
             let (fileURL, _) = try await URLSession.shared.download(from: url)
             try FileManager.default.moveItem(at: fileURL, to: localURL)
             downloads[wallpaper.id] = .completed(localURL: localURL)
+            AppLogger.download.info("Completed download \(wallpaper.id, privacy: .public)")
         } catch {
+            AppLogger.download.error("Download failed for \(wallpaper.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
             downloads[wallpaper.id] = .failed(error.localizedDescription)
         }
     }

@@ -68,7 +68,8 @@ struct GalleryView: View {
                                 ForEach(filteredWallpapers) { wallpaper in
                                     WallpaperCardView(
                                         wallpaper: wallpaper,
-                                        isActive: activeWallpaperIDs.contains(wallpaper.id)
+                                        isActive: activeWallpaperIDs.contains(wallpaper.id),
+                                        isStale: catalog.staleLocalWallpaperIDs.contains(wallpaper.id)
                                     ) {
                                         withAnimation(.easeInOut(duration: 0.18)) {
                                             selectedWallpaper = wallpaper
@@ -273,7 +274,11 @@ struct GalleryView: View {
             .padding(.top, 12)
             .padding(.bottom, 8)
 
-            WallpaperDetailView(wallpaper: wallpaper)
+            WallpaperDetailView(wallpaper: wallpaper) {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    selectedWallpaper = nil
+                }
+            }
         }
     }
 
@@ -357,14 +362,35 @@ struct GalleryView: View {
     // MARK: - Drop handler
 
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
-        guard let provider = providers.first else { return false }
-
-        let targetTypes = [UTType.quickTimeMovie.identifier, UTType.mpeg4Movie.identifier, UTType.movie.identifier]
-        guard let matchingType = targetTypes.first(where: { provider.hasItemConformingToTypeIdentifier($0) }) else {
+        guard let provider = providers.first else {
+            AppErrorPresenter.report(
+                title: "Couldn't Import",
+                message: "No file was dropped.",
+                recoverySuggestion: "Try dragging the video file again."
+            )
             return false
         }
 
-        provider.loadItem(forTypeIdentifier: matchingType, options: nil) { item, _ in
+        let targetTypes = [UTType.quickTimeMovie.identifier, UTType.mpeg4Movie.identifier, UTType.movie.identifier]
+        guard let matchingType = targetTypes.first(where: { provider.hasItemConformingToTypeIdentifier($0) }) else {
+            AppErrorPresenter.report(
+                title: "Unsupported File",
+                message: "That file isn't a supported video format.",
+                recoverySuggestion: "Drop an MP4 or MOV file."
+            )
+            return false
+        }
+
+        provider.loadItem(forTypeIdentifier: matchingType, options: nil) { item, error in
+            if let error = error {
+                AppErrorPresenter.report(
+                    title: "Couldn't Import",
+                    message: error.localizedDescription,
+                    recoverySuggestion: "Try dragging the file again."
+                )
+                return
+            }
+
             var url: URL?
             if let directURL = item as? URL {
                 url = directURL
@@ -372,9 +398,17 @@ struct GalleryView: View {
                 url = URL(dataRepresentation: data, relativeTo: nil)
             }
 
-            guard let fileURL = url else { return }
+            guard let fileURL = url else {
+                AppErrorPresenter.report(
+                    title: "Couldn't Import",
+                    message: "Couldn't read the dropped file's location.",
+                    recoverySuggestion: "Try importing via the toolbar button instead."
+                )
+                return
+            }
 
             Task { @MainActor in
+                // catalog.addLocalWallpaper surfaces its own errors via the presenter on failure.
                 if let wallpaper = await catalog.addLocalWallpaper(fileURL: fileURL) {
                     engine.apply(wallpaper, scope: .allDisplays)
                 }

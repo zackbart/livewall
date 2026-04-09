@@ -8,6 +8,7 @@ struct LiveWallApp: App {
     var body: some Scene {
         WindowGroup(id: "main") {
             GalleryView()
+                .appErrorAlert()
         }
         .windowToolbarStyle(.unified)
         .commands {
@@ -16,6 +17,7 @@ struct LiveWallApp: App {
 
         WindowGroup(id: "settings") {
             SettingsView()
+                .appErrorAlert()
         }
         .windowToolbarStyle(.unified)
         .commands {
@@ -24,6 +26,7 @@ struct LiveWallApp: App {
 
         WindowGroup(id: "import") {
             ImportView()
+                .appErrorAlert()
         }
         .windowToolbarStyle(.unified)
         .commands {

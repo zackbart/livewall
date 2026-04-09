@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import IOKit.ps
+import os
 
 enum WallpaperApplyScope {
     case allDisplays
@@ -35,24 +36,56 @@ final class WallpaperEngine: ObservableObject {
         WallpaperEngine(displayManager: DisplayManager())
     }
 
+    // MARK: - Apply / set
+
     func apply(_ wallpaper: Wallpaper, scope: WallpaperApplyScope) {
-        print("[Engine] apply: \(wallpaper.title), displays=\(displayManager.displays.count)")
-        print("[Engine] Display list: \(displayManager.displays.map { "\($0.localizedName) \($0.frame)" })")
+        guard ensureAvailable(wallpaper) else { return }
+
+        AppLogger.engine.debug("apply \(wallpaper.title, privacy: .public) to \(String(describing: scope), privacy: .public), displays=\(self.displayManager.displays.count, privacy: .public)")
+
         switch scope {
         case .allDisplays:
             for display in displayManager.displays {
-                print("[Engine] Applying to display \(display.id) (\(display.localizedName))")
-                setWallpaper(wallpaper, forDisplay: display.id)
+                setWallpaperInternal(wallpaper, forDisplay: display.id)
             }
         case .specificDisplay(let displayID):
-            setWallpaper(wallpaper, forDisplay: displayID)
+            setWallpaperInternal(wallpaper, forDisplay: displayID)
         }
     }
 
+    /// Public entry point for single-display apply (from the detail view).
+    /// Runs the same availability check as `apply(_:scope:)`.
     func setWallpaper(_ wallpaper: Wallpaper, forDisplay displayID: String) {
+        guard ensureAvailable(wallpaper) else { return }
+        setWallpaperInternal(wallpaper, forDisplay: displayID)
+    }
+
+    /// Internal hot-path — no availability check. Only call after `ensureAvailable`
+    /// has been verified once at the top level.
+    private func setWallpaperInternal(_ wallpaper: Wallpaper, forDisplay displayID: String) {
         activeWallpapers[displayID] = wallpaper
         updateWindow(forDisplay: displayID, wallpaper: wallpaper)
     }
+
+    /// Returns true if the wallpaper's backing file is reachable. For stale
+    /// local wallpapers, logs a warning and surfaces a single user-visible
+    /// error (deduped by the presenter).
+    private func ensureAvailable(_ wallpaper: Wallpaper) -> Bool {
+        if wallpaper.isLocal,
+           let url = wallpaper.localFileURL,
+           !FileManager.default.fileExists(atPath: url.path) {
+            AppLogger.engine.warning("Stale local wallpaper: \(wallpaper.title, privacy: .public) at \(url.path, privacy: .public)")
+            AppErrorPresenter.report(
+                title: "Wallpaper File Missing",
+                message: "\"\(wallpaper.title)\" was moved or deleted since you imported it.",
+                recoverySuggestion: "Remove it from your library or re-import the file."
+            )
+            return false
+        }
+        return true
+    }
+
+    // MARK: - Playback control
 
     func pauseAll() {
         isPaused = true
@@ -90,13 +123,15 @@ final class WallpaperEngine: ObservableObject {
         displayManager.displays
     }
 
+    // MARK: - Window management
+
     private func updateWindow(forDisplay displayID: String, wallpaper: Wallpaper) {
         guard let display = displayManager.displays.first(where: { $0.id == displayID }) else {
-            print("[Engine] No display found for \(displayID)")
+            AppLogger.engine.warning("No display found for id \(displayID, privacy: .public)")
             return
         }
 
-        print("[Engine] updateWindow: display=\(displayID) frame=\(display.frame)")
+        AppLogger.engine.debug("updateWindow display=\(displayID, privacy: .public)")
 
         let window: WallpaperWindow
         if let existing = windows[displayID] {
@@ -104,39 +139,44 @@ final class WallpaperEngine: ObservableObject {
         } else {
             window = WallpaperWindow(contentRect: display.frame)
             windows[displayID] = window
-            print("[Engine] Created WallpaperWindow")
         }
 
         window.updateFrame(display.frame)
 
-        let url: URL
-        if let localURL = wallpaper.localFileURL {
-            url = localURL
-            print("[Engine] Playing local: \(url.path)")
-        } else {
-            // Check download directory for cached file
-            let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            let downloadDir = support.appendingPathComponent("livewall/wallpapers", isDirectory: true)
-            let cachedURL = downloadDir.appendingPathComponent("\(wallpaper.id).mp4")
-
-            if FileManager.default.fileExists(atPath: cachedURL.path) {
-                url = cachedURL
-                print("[Engine] Playing cached: \(url.path)")
-            } else if let remoteURL = wallpaper.remoteURL {
-                url = remoteURL
-                print("[Engine] Playing remote: \(url)")
-            } else if let videoURL = URL(string: wallpaper.videoURL) {
-                url = videoURL
-                print("[Engine] Playing videoURL: \(url)")
-            } else {
-                print("[Engine] No valid URL!")
-                return
-            }
+        guard let url = resolveVideoURL(for: wallpaper) else {
+            AppLogger.engine.error("No reachable video URL for wallpaper \(wallpaper.title, privacy: .public)")
+            AppErrorPresenter.report(
+                title: "Can't Play This Wallpaper",
+                message: "The video source for \"\(wallpaper.title)\" isn't reachable.",
+                recoverySuggestion: "Try a different wallpaper, or re-import it if it's a local file."
+            )
+            return
         }
 
         window.play(url: url)
         window.orderBack(nil)
-        print("[Engine] WallpaperWindow: visible=\(window.isVisible) frame=\(window.frame) level=\(window.level.rawValue)")
+    }
+
+    /// Resolves the playable URL for a wallpaper: local file → cached download → remote → raw videoURL.
+    private func resolveVideoURL(for wallpaper: Wallpaper) -> URL? {
+        if let localURL = wallpaper.localFileURL {
+            return localURL
+        }
+
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let downloadDir = support.appendingPathComponent("livewall/wallpapers", isDirectory: true)
+        let cachedURL = downloadDir.appendingPathComponent("\(wallpaper.id).mp4")
+
+        if FileManager.default.fileExists(atPath: cachedURL.path) {
+            return cachedURL
+        }
+        if let remoteURL = wallpaper.remoteURL {
+            return remoteURL
+        }
+        if let videoURL = URL(string: wallpaper.videoURL) {
+            return videoURL
+        }
+        return nil
     }
 
     private func rebuildWindows() {
@@ -144,6 +184,7 @@ final class WallpaperEngine: ObservableObject {
         let staleIDs = Set(windows.keys).subtracting(currentDisplayIDs)
 
         for staleID in staleIDs {
+            AppLogger.engine.info("Display disconnected: \(staleID, privacy: .public)")
             windows[staleID]?.stop()
             windows[staleID]?.close()
             windows.removeValue(forKey: staleID)
@@ -156,6 +197,8 @@ final class WallpaperEngine: ObservableObject {
             }
         }
     }
+
+    // MARK: - Battery monitoring
 
     private func setupBatteryMonitoring() {
         NSWorkspace.shared.notificationCenter.addObserver(

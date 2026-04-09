@@ -3,6 +3,7 @@ import SwiftUI
 struct WallpaperCardView: View {
     let wallpaper: Wallpaper
     let isActive: Bool
+    var isStale: Bool = false
     let onTap: () -> Void
 
     @State private var isHovering = false
@@ -10,8 +11,9 @@ struct WallpaperCardView: View {
     @State private var hoverTask: Task<Void, Never>?
 
     /// Only show the hover preview if we already have the video locally —
-    /// we never start a remote stream on hover.
+    /// we never start a remote stream on hover. Stale wallpapers never preview.
     private var previewURL: URL? {
+        guard !isStale else { return nil }
         if let local = wallpaper.localFileURL {
             return local
         }
@@ -62,6 +64,8 @@ struct WallpaperCardView: View {
         ZStack(alignment: .topTrailing) {
             ZStack {
                 staticThumbnail
+                    .grayscale(isStale ? 0.75 : 0)
+                    .opacity(isStale ? 0.75 : 1.0)
 
                 if showPreview, let url = previewURL {
                     VideoPreviewPlayer(
@@ -76,7 +80,11 @@ struct WallpaperCardView: View {
                 }
             }
 
-            if isActive {
+            if isStale {
+                staleOverlay
+            }
+
+            if isActive && !isStale {
                 HStack(spacing: 4) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 10, weight: .semibold))
@@ -117,6 +125,21 @@ struct WallpaperCardView: View {
         } else {
             placeholderView
         }
+    }
+
+    private var staleOverlay: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 10, weight: .semibold))
+            Text("Missing")
+                .font(.system(size: 10, weight: .semibold))
+        }
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .glassEffect(.regular.tint(.orange.opacity(0.45)), in: .capsule)
+        .padding(8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var placeholderView: some View {
