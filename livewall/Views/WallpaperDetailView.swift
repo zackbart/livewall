@@ -169,9 +169,20 @@ struct WallpaperDetailView: View {
 
             if downloadManager.downloads[wallpaper.id]?.isActive == true {
                 Color.black.opacity(0.35)
-                ProgressView("Downloading preview…")
-                    .controlSize(.regular)
-                    .foregroundStyle(.white)
+                if let fraction = downloadManager.downloads[wallpaper.id]?.progressFraction {
+                    ProgressView(value: fraction) {
+                        Text("Downloading preview…")
+                            .foregroundStyle(.white)
+                    }
+                    .progressViewStyle(.linear)
+                    .tint(.white)
+                    .frame(maxWidth: 220)
+                    .padding(.horizontal, 24)
+                } else {
+                    ProgressView("Downloading preview…")
+                        .controlSize(.regular)
+                        .foregroundStyle(.white)
+                }
             } else {
                 Label("Preview unlocks after Apply", systemImage: "play.circle")
                     .font(.caption.weight(.semibold))
@@ -271,8 +282,9 @@ struct WallpaperDetailView: View {
     @ViewBuilder
     private func applyButton(for display: DisplayInfo, isActive: Bool, state: DownloadState?) -> some View {
         switch state {
-        case .downloading:
-            ProgressView()
+        case .downloading(let fraction):
+            ProgressView(value: fraction)
+                .progressViewStyle(.linear)
                 .controlSize(.small)
                 .frame(minWidth: 72)
         case .failed(let message):

@@ -43,8 +43,28 @@ struct LiveWallApp: App {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
+    private var didBecomeActiveObserver: NSObjectProtocol?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         WallpaperEngine.shared.refreshDisplays()
+        WallpaperCatalog.shared.refreshStaleStatus()
+
+        // Re-check stale-file status whenever the user returns to the app —
+        // catches files that were moved or deleted while we were inactive.
+        didBecomeActiveObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            WallpaperCatalog.shared.refreshStaleStatus()
+        }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        if let observer = didBecomeActiveObserver {
+            NotificationCenter.default.removeObserver(observer)
+            didBecomeActiveObserver = nil
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

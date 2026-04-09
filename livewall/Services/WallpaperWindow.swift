@@ -8,6 +8,20 @@ final class WallpaperPlayerView: NSView {
     private var notificationObserver: NSObjectProtocol?
     private var statusObservation: NSKeyValueObservation?
 
+    // Stall detection state. The KVO closure for `timeControlStatus` hops to
+    // `@MainActor` before touching any of these — they are only mutated from
+    // the main actor.
+    private var stallObservation: NSKeyValueObservation?
+    private var hasPlayedAtLeastOnce: Bool = false
+    private var stallTask: Task<Void, Never>?
+    private var lastStallReport: Date?
+
+    /// Minimum time the player must be in `.waitingToPlayAtSpecifiedRate`
+    /// before we consider it a stall worth surfacing to the user.
+    private static let stallThreshold: Duration = .seconds(15)
+    /// Don't surface more than one stall alert per player within this window.
+    private static let stallReportCooldown: TimeInterval = 60
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
@@ -69,7 +83,68 @@ final class WallpaperPlayerView: NSView {
             }
         }
 
+        // Observe `timeControlStatus` to surface silent stalls. The KVO
+        // callback fires on an arbitrary thread, so it must hop to the main
+        // actor before touching any view state.
+        stallObservation = newPlayer.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
+            let status = player.timeControlStatus
+            Task { @MainActor [weak self] in
+                self?.handleTimeControlStatus(status)
+            }
+        }
+
         newPlayer.play()
+    }
+
+    @MainActor
+    private func handleTimeControlStatus(_ status: AVPlayer.TimeControlStatus) {
+        switch status {
+        case .playing:
+            hasPlayedAtLeastOnce = true
+            cancelStallTimer()
+        case .waitingToPlayAtSpecifiedRate:
+            // Suppress the very first buffering pass — every newly created
+            // player enters this state before the first frame is decoded.
+            guard hasPlayedAtLeastOnce else { return }
+            armStallTimer()
+        case .paused:
+            cancelStallTimer()
+        @unknown default:
+            break
+        }
+    }
+
+    @MainActor
+    private func armStallTimer() {
+        cancelStallTimer()
+        stallTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: WallpaperPlayerView.stallThreshold)
+            guard !Task.isCancelled, let self else { return }
+            // Re-check the player is still wedged before we cry wolf.
+            if self.player?.timeControlStatus == .waitingToPlayAtSpecifiedRate {
+                self.reportStall()
+            }
+        }
+    }
+
+    @MainActor
+    private func cancelStallTimer() {
+        stallTask?.cancel()
+        stallTask = nil
+    }
+
+    @MainActor
+    private func reportStall() {
+        if let last = lastStallReport, Date().timeIntervalSince(last) < WallpaperPlayerView.stallReportCooldown {
+            return
+        }
+        lastStallReport = Date()
+        AppLogger.playback.warning("Wallpaper playback stalled (waiting to play)")
+        AppErrorPresenter.report(
+            title: "Playback Stalled",
+            message: "A wallpaper has been buffering for an unusually long time.",
+            recoverySuggestion: "Check your network connection."
+        )
     }
 
     func pause() {
@@ -87,6 +162,11 @@ final class WallpaperPlayerView: NSView {
         }
         statusObservation?.invalidate()
         statusObservation = nil
+        stallObservation?.invalidate()
+        stallObservation = nil
+        cancelStallTimer()
+        hasPlayedAtLeastOnce = false
+        lastStallReport = nil
         player?.pause()
         playerLayer?.player = nil
         player = nil
