@@ -42,6 +42,44 @@ struct LiveWallApp: App {
     }
 }
 
+struct AppAmbientBackground: View {
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(nsColor: .windowBackgroundColor),
+                    Color(nsColor: .underPageBackgroundColor),
+                    Color.accentColor.opacity(0.08)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            RadialGradient(
+                colors: [
+                    Color.white.opacity(0.32),
+                    Color.clear
+                ],
+                center: .topLeading,
+                startRadius: 20,
+                endRadius: 420
+            )
+            .blendMode(.plusLighter)
+
+            RadialGradient(
+                colors: [
+                    Color.accentColor.opacity(0.18),
+                    Color.clear
+                ],
+                center: .bottomTrailing,
+                startRadius: 40,
+                endRadius: 460
+            )
+        }
+        .ignoresSafeArea()
+    }
+}
+
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var didBecomeActiveObserver: NSObjectProtocol?
 

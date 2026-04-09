@@ -22,43 +22,29 @@ struct WallpaperDetailView: View {
         return downloadManager.localURL(for: wallpaper.id)
     }
 
+    private var activeDisplayCount: Int {
+        engine.activeWallpapers.values.filter { $0.id == wallpaper.id }.count
+    }
+
+    private var wallpaperSummary: String {
+        if isStale {
+            return "The source file is missing, so this entry can no longer be played."
+        }
+        if wallpaper.isLocal {
+            return "Imported from your Mac and ready to apply anywhere."
+        }
+        if previewURL != nil {
+            return "Cached locally for instant preview and faster applying."
+        }
+        return "Preview becomes fully interactive after the first download."
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 heroPreview
 
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(wallpaper.title)
-                        .font(.title2)
-                        .fontWeight(.semibold)
-
-                    HStack(spacing: 14) {
-                        Label(wallpaper.resolution.rawValue, systemImage: "display")
-                        if let duration = wallpaper.duration {
-                            Label(String(format: "%.0fs", duration), systemImage: "clock")
-                        }
-                        if wallpaper.isLocal {
-                            Label("Local file", systemImage: "folder")
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                    if !wallpaper.tags.isEmpty {
-                        FlowLayout(spacing: 6) {
-                            ForEach(wallpaper.tags, id: \.self) { tag in
-                                Text(tag)
-                                    .font(.caption2.weight(.medium))
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 4)
-                                    .glassEffect(.regular, in: .capsule)
-                            }
-                        }
-                        .padding(.top, 2)
-                    }
-                }
-
-                Divider()
+                summaryPanel
 
                 if isStale {
                     staleNotice
@@ -66,9 +52,84 @@ struct WallpaperDetailView: View {
                     displayPicker
                 }
             }
-            .padding(20)
+            .padding(24)
         }
         .frame(minWidth: 440, minHeight: 520)
+    }
+
+    private var summaryPanel: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(wallpaper.title)
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+
+                    Text(wallpaperSummary)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+
+                if activeDisplayCount > 0 {
+                    Label("\(activeDisplayCount) active", systemImage: "play.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .glassEffect(.regular.tint(.green.opacity(0.24)), in: .capsule)
+                }
+            }
+
+            HStack(spacing: 10) {
+                detailPill(title: wallpaper.resolution.rawValue, systemImage: "display")
+                if let duration = wallpaper.duration {
+                    detailPill(title: String(format: "%.0fs loop", duration), systemImage: "clock")
+                }
+                detailPill(
+                    title: wallpaper.isLocal ? "Imported" : (previewURL != nil ? "Cached" : "Download on apply"),
+                    systemImage: wallpaper.isLocal ? "folder.fill" : "arrow.down.circle"
+                )
+            }
+
+            if !wallpaper.tags.isEmpty {
+                FlowLayout(spacing: 8) {
+                    ForEach(wallpaper.tags, id: \.self) { tag in
+                        Text(tag)
+                            .font(.caption.weight(.medium))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .glassEffect(.regular, in: .capsule)
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .background {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.68),
+                            Color(nsColor: .windowBackgroundColor).opacity(0.90)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.30), lineWidth: 1)
+                }
+        }
+    }
+
+    private func detailPill(title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.caption.weight(.medium))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .glassEffect(.regular, in: .capsule)
     }
 
     // MARK: - Stale notice
@@ -129,6 +190,18 @@ struct WallpaperDetailView: View {
                     .padding(.vertical, 5)
                     .glassEffect(.regular.tint(.black.opacity(0.45)), in: .capsule)
                     .padding(12)
+            }
+            .overlay(alignment: .topLeading) {
+                HStack(spacing: 8) {
+                    detailPill(
+                        title: wallpaper.isLocal ? "Imported" : "Catalog",
+                        systemImage: wallpaper.isLocal ? "folder.fill" : "sparkles.rectangle.stack.fill"
+                    )
+                    if previewURL != nil {
+                        detailPill(title: "Ready to preview", systemImage: "play.circle.fill")
+                    }
+                }
+                .padding(12)
             }
         } else {
             staticHero
@@ -202,8 +275,13 @@ struct WallpaperDetailView: View {
     private var displayPicker: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Apply to Display")
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Apply to Display")
+                        .font(.headline)
+                    Text("Choose where this wallpaper should play right now.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
 
                 Spacer()
 
@@ -213,9 +291,9 @@ struct WallpaperDetailView: View {
                     Label("Apply to All", systemImage: "rectangle.on.rectangle")
                 }
                 .buttonStyle(.glassProminent)
-                .controlSize(.regular)
-                .keyboardShortcut(.defaultAction)
-                .disabled(isAnyDownloadInFlight)
+                    .controlSize(.regular)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(isAnyDownloadInFlight)
             }
 
             if displayManager.displays.isEmpty {
@@ -233,6 +311,8 @@ struct WallpaperDetailView: View {
                 }
             }
         }
+        .padding(20)
+        .glassEffect(.regular, in: .rect(cornerRadius: 22))
     }
 
     private var isAnyDownloadInFlight: Bool {
@@ -247,7 +327,11 @@ struct WallpaperDetailView: View {
         return HStack(spacing: 12) {
             Image(systemName: "display")
                 .font(.title3)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(
+                    isActive
+                        ? AnyShapeStyle(.tint)
+                        : AnyShapeStyle(.secondary)
+                )
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -260,23 +344,28 @@ struct WallpaperDetailView: View {
 
             Spacer()
 
-            if isActive {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                    .font(.title3)
-            } else if let other = otherActive, other.id != wallpaper.id {
-                Text(other.title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .frame(maxWidth: 120, alignment: .trailing)
-            }
+            VStack(alignment: .trailing, spacing: 4) {
+                if isActive {
+                    Label("Currently Live", systemImage: "checkmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.green)
+                } else if let other = otherActive, other.id != wallpaper.id {
+                    Text(other.title)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: 120, alignment: .trailing)
+                }
 
-            applyButton(for: display, isActive: isActive, state: downloadState)
+                applyButton(for: display, isActive: isActive, state: downloadState)
+            }
         }
-        .padding(12)
-        .glassEffect(.regular, in: .rect(cornerRadius: 10))
+        .padding(14)
+        .glassEffect(
+            isActive ? .regular.tint(.green.opacity(0.16)) : .regular,
+            in: .rect(cornerRadius: 16)
+        )
     }
 
     @ViewBuilder
@@ -303,7 +392,6 @@ struct WallpaperDetailView: View {
                     engine.stop(forDisplay: display.id)
                 } label: {
                     Label("Remove", systemImage: "stop.circle")
-                        .labelStyle(.titleOnly)
                         .frame(minWidth: 72)
                 }
                 .buttonStyle(.glass)
@@ -314,7 +402,7 @@ struct WallpaperDetailView: View {
                     Text("Apply")
                         .frame(minWidth: 72)
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.glassProminent)
             }
         }
     }

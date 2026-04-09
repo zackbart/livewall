@@ -30,20 +30,29 @@ struct WallpaperCardView: View {
                 metadataArea
             }
             .background {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(nsColor: .controlBackgroundColor),
+                                Color(nsColor: .windowBackgroundColor)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .strokeBorder(
-                        isHovering ? Color.primary.opacity(0.14) : Color.primary.opacity(0.06),
+                        isHovering ? Color.white.opacity(0.32) : Color.primary.opacity(0.06),
                         lineWidth: 1
                     )
             }
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .compositingGroup()
-            .shadow(color: .black.opacity(isHovering ? 0.14 : 0.06), radius: isHovering ? 6 : 3, x: 0, y: isHovering ? 3 : 1)
-            .scaleEffect(isHovering ? 1.015 : 1.0, anchor: .center)
+            .shadow(color: .black.opacity(isHovering ? 0.14 : 0.06), radius: isHovering ? 16 : 8, x: 0, y: isHovering ? 8 : 4)
+            .scaleEffect(isHovering ? 1.01 : 1)
             .animation(.easeOut(duration: 0.18), value: isHovering)
         }
         .buttonStyle(.plain)
@@ -67,6 +76,15 @@ struct WallpaperCardView: View {
                     .grayscale(isStale ? 0.75 : 0)
                     .opacity(isStale ? 0.75 : 1.0)
 
+                LinearGradient(
+                    colors: [
+                        Color.clear,
+                        Color.black.opacity(0.06)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
                 if showPreview, let url = previewURL {
                     VideoPreviewPlayer(
                         wallpaperID: wallpaper.id,
@@ -79,6 +97,16 @@ struct WallpaperCardView: View {
                     .transition(.opacity.animation(.easeInOut(duration: 0.25)))
                 }
             }
+
+            VStack {
+                HStack {
+                    sourceBadge
+                    Spacer(minLength: 0)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(8)
 
             if isStale {
                 staleOverlay
@@ -98,7 +126,7 @@ struct WallpaperCardView: View {
                 .padding(8)
             }
         }
-        .frame(height: 140)
+        .frame(height: 154)
     }
 
     @ViewBuilder
@@ -109,7 +137,7 @@ struct WallpaperCardView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 140)
+                    .frame(height: 154)
                     .clipped()
             } placeholder: {
                 placeholderView
@@ -120,7 +148,7 @@ struct WallpaperCardView: View {
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .frame(maxWidth: .infinity)
-                .frame(height: 140)
+                .frame(height: 154)
                 .clipped()
         } else {
             placeholderView
@@ -142,6 +170,16 @@ struct WallpaperCardView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
+    private var sourceBadge: some View {
+        Label(wallpaper.isLocal ? "Imported" : wallpaper.resolution.rawValue, systemImage: wallpaper.isLocal ? "folder.fill" : "sparkles.rectangle.stack.fill")
+            .font(.system(size: 10, weight: .semibold))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .glassEffect(.regular.tint(.black.opacity(0.18)), in: .capsule)
+            .foregroundStyle(.primary)
+            .opacity(isStale ? 0.7 : 1)
+    }
+
     private var placeholderView: some View {
         ZStack {
             Rectangle()
@@ -151,46 +189,47 @@ struct WallpaperCardView: View {
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 140)
+        .frame(height: 154)
     }
 
     // MARK: - Metadata area
 
     private var metadataArea: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(wallpaper.title)
-                .font(.system(size: 13, weight: .medium))
-                .lineLimit(1)
+                .font(.system(size: 13, weight: .semibold))
+                .lineLimit(2)
                 .foregroundStyle(.primary)
 
-            HStack(spacing: 6) {
-                if !wallpaper.isLocal {
-                    Text(wallpaper.resolution.rawValue)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.secondary)
+            HStack(alignment: .center) {
+                HStack(spacing: 6) {
+                    if let duration = wallpaper.duration {
+                        cardInfoPill(title: String(format: "%.0fs", duration), systemImage: "clock")
+                    }
+                    if previewURL != nil && !isActive {
+                        cardInfoPill(title: "Preview", systemImage: "play.circle")
+                            .opacity(isHovering ? 0.55 : 1)
+                    }
                 }
-                if let duration = wallpaper.duration {
-                    Text(String(format: "%.0fs", duration))
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                }
-                if wallpaper.isLocal {
-                    Image(systemName: "folder.fill")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.tertiary)
-                }
+
                 Spacer(minLength: 0)
-                if previewURL != nil && !isActive {
-                    Image(systemName: "play.circle")
-                        .font(.system(size: 10))
+
+                if wallpaper.isLocal {
+                    Image(systemName: "externaldrive.badge.checkmark")
+                        .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
-                        .opacity(isHovering ? 0 : 0.6)
-                        .accessibilityHidden(true)
+                        .accessibilityLabel("Imported wallpaper")
                 }
             }
         }
-        .padding(10)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func cardInfoPill(title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.system(size: 10, weight: .medium))
+            .foregroundStyle(.secondary)
     }
 
     // MARK: - Hover debouncing

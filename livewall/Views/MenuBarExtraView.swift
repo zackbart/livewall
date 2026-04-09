@@ -5,7 +5,29 @@ struct MenuBarExtraView: View {
     @ObservedObject private var engine = WallpaperEngine.shared
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("LiveWall")
+                        .font(.headline)
+                    Text(engine.isPaused ? "Playback paused" : "\(engine.activeWallpapers.count) active wallpaper\(engine.activeWallpapers.count == 1 ? "" : "s")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: engine.isPaused ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(
+                        engine.isPaused
+                            ? AnyShapeStyle(.secondary)
+                            : AnyShapeStyle(.tint)
+                    )
+                    .padding(10)
+                    .glassEffect(.regular, in: .capsule)
+            }
+
             Button(engine.isPaused ? "Resume Wallpapers" : "Pause Wallpapers") {
                 if engine.isPaused {
                     engine.resumeAll()
@@ -13,45 +35,78 @@ struct MenuBarExtraView: View {
                     engine.pauseAll()
                 }
             }
+            .buttonStyle(.glassProminent)
+            .controlSize(.regular)
             .keyboardShortcut("p", modifiers: [.command, .shift])
 
             if !engine.activeWallpapers.isEmpty {
-                Divider()
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Active Wallpapers")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
 
-                Text("Active Wallpapers")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    VStack(spacing: 8) {
+                        ForEach(Array(engine.activeWallpapers.values), id: \.id) { wp in
+                            HStack(spacing: 10) {
+                                Image(systemName: "display")
+                                    .foregroundStyle(.tint)
+                                    .frame(width: 18)
 
-                ForEach(Array(engine.activeWallpapers.values), id: \.id) { wp in
-                    Label(wp.title, systemImage: "display")
-                        .labelStyle(.titleAndIcon)
-                        .font(.callout)
-                        .foregroundStyle(.primary)
+                                Text(wp.title)
+                                    .font(.callout)
+                                    .lineLimit(1)
+
+                                Spacer()
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .glassEffect(.regular, in: .rect(cornerRadius: 14))
+                        }
+                    }
                 }
             }
 
-            Divider()
+            VStack(spacing: 8) {
+                menuAction(title: "Open LiveWall", systemImage: "sparkles.tv.fill") {
+                    openWindow(id: "main")
+                }
+                .keyboardShortcut("o", modifiers: .command)
 
-            Button("Open LiveWall") {
-                openWindow(id: "main")
+                menuAction(title: "Import Wallpaper…", systemImage: "square.and.arrow.down") {
+                    openWindow(id: "import")
+                }
+
+                menuAction(title: "Settings…", systemImage: "gearshape") {
+                    openWindow(id: "settings")
+                }
+                .keyboardShortcut(",", modifiers: .command)
             }
-            .keyboardShortcut("o", modifiers: .command)
-
-            Button("Import Wallpaper…") {
-                openWindow(id: "import")
-            }
-
-            Button("Settings…") {
-                openWindow(id: "settings")
-            }
-            .keyboardShortcut(",", modifiers: .command)
-
-            Divider()
+            .padding(6)
+            .glassEffect(.regular, in: .rect(cornerRadius: 18))
 
             Button("Quit LiveWall") {
                 NSApplication.shared.terminate(nil)
             }
             .keyboardShortcut("q", modifiers: .command)
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
         }
+        .padding(16)
+        .frame(width: 320)
+    }
+
+    private func menuAction(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: systemImage)
+                    .foregroundStyle(.tint)
+                    .frame(width: 18)
+                Text(title)
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
     }
 }
