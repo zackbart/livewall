@@ -15,9 +15,10 @@ struct GalleryView: View {
     @ObservedObject private var catalog = WallpaperCatalog.shared
     @ObservedObject private var engine = WallpaperEngine.shared
     @ObservedObject private var downloadManager = DownloadManager.shared
+    @ObservedObject private var displayManager = DisplayManager.shared
 
     private let columns = [
-        GridItem(.adaptive(minimum: 220, maximum: 260), spacing: 28)
+        GridItem(.adaptive(minimum: 220, maximum: 260), spacing: Metrics.spacingXXL)
     ]
 
     var body: some View {
@@ -60,7 +61,7 @@ struct GalleryView: View {
     }
 
     private var displayCount: Int {
-        max(engine.displays.count, 1)
+        max(displayManager.displays.count, 1)
     }
 
     @ViewBuilder
@@ -70,7 +71,7 @@ struct GalleryView: View {
                 emptyStateView
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 24, pinnedViews: [.sectionHeaders]) {
+                    LazyVStack(spacing: Metrics.spacingXXL, pinnedViews: [.sectionHeaders]) {
                         heroSection
 
                         if !engine.activeWallpapers.isEmpty {
@@ -78,7 +79,7 @@ struct GalleryView: View {
                         }
 
                         Section {
-                            LazyVGrid(columns: columns, spacing: 28) {
+                            LazyVGrid(columns: columns, spacing: Metrics.spacingXXL) {
                                 ForEach(filteredWallpapers) { wallpaper in
                                     WallpaperCardView(
                                         wallpaper: wallpaper,
@@ -91,16 +92,16 @@ struct GalleryView: View {
                                     }
                                 }
                             }
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 20)
+                            .padding(.horizontal, Metrics.spacingXL)
+                            .padding(.bottom, Metrics.spacingXL)
                         } header: {
                             if !catalog.allTags.isEmpty || !searchQuery.isEmpty {
                                 tagFilterStrip
                             }
                         }
                     }
-                    .padding(.top, 20)
-                    .padding(.bottom, 28)
+                    .padding(.top, Metrics.spacingXL)
+                    .padding(.bottom, Metrics.spacingXXL)
                 }
             }
         }
@@ -145,13 +146,13 @@ struct GalleryView: View {
     }
 
     private var heroSection: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 18) {
-                VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Metrics.spacingL) {
+            HStack(alignment: .top, spacing: Metrics.spacingL) {
+                VStack(alignment: .leading, spacing: Metrics.spacingS) {
                     Text("Make your desktop feel alive.")
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .font(.largeTitle.weight(.bold))
 
-                    Text("Browse the catalog, import your own loops, and send motion to every display without turning the app chrome into a frosted mess.")
+                    Text("Browse the catalog, import your own loops, and send motion to every display.")
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -159,7 +160,7 @@ struct GalleryView: View {
 
                 Spacer(minLength: 0)
 
-                VStack(alignment: .trailing, spacing: 10) {
+                VStack(alignment: .trailing, spacing: Metrics.spacingS) {
                     heroMetric(
                         value: "\(catalog.allWallpapers.count)",
                         title: "Wallpapers",
@@ -173,65 +174,57 @@ struct GalleryView: View {
                 }
             }
 
-            HStack(spacing: 10) {
+            HStack(spacing: Metrics.spacingM) {
                 Button {
                     openWindow(id: "import")
                 } label: {
                     Label("Import a Video", systemImage: "square.and.arrow.down")
-                        .frame(minWidth: 148)
+                        .frame(minWidth: 160)
                 }
                 .buttonStyle(.glassProminent)
                 .controlSize(.large)
 
-                Button {
-                    openWindow(id: "settings")
-                } label: {
-                    Label("Tune Playback", systemImage: "slider.horizontal.3")
-                }
-                .buttonStyle(.glass)
-                .controlSize(.large)
-            }
-
-            HStack(spacing: 10) {
-                spotlightPill(
+                StatusPill(
                     title: activeWallpaperIDs.isEmpty ? "Ready to apply" : "\(activeWallpaperIDs.count) active",
-                    systemImage: activeWallpaperIDs.isEmpty ? "sparkles" : "play.circle.fill"
+                    systemImage: activeWallpaperIDs.isEmpty ? "sparkles" : "play.circle.fill",
+                    tint: activeWallpaperIDs.isEmpty ? nil : .green
                 )
-                spotlightPill(
+                StatusPill(
                     title: "\(localWallpaperCount) imported",
                     systemImage: "folder.fill"
                 )
-                spotlightPill(
-                    title: "Hover for motion",
-                    systemImage: "cursorarrow.motionlines"
-                )
+
+                Spacer(minLength: 0)
             }
         }
-        .padding(24)
+        .padding(Metrics.spacingXXL)
         .background {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.72),
-                            Color(nsColor: .windowBackgroundColor).opacity(0.88),
-                            Color.accentColor.opacity(0.10)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+            RoundedRectangle(cornerRadius: Metrics.radiusXL, style: .continuous)
+                .fill(.regularMaterial)
                 .overlay {
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.35), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: Metrics.radiusXL, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.accentColor.opacity(0.08),
+                                    Color.clear
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: Metrics.radiusXL, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.10), lineWidth: 1)
                 }
                 .shadow(color: .black.opacity(0.06), radius: 18, x: 0, y: 10)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, Metrics.spacingXL)
     }
 
     private func heroMetric(value: String, title: String, systemImage: String) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Metrics.spacingS) {
             Image(systemName: systemImage)
                 .font(.headline)
                 .foregroundStyle(.tint)
@@ -245,25 +238,17 @@ struct GalleryView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Metrics.spacingM)
+        .padding(.vertical, Metrics.spacingS)
         .glassEffect(.regular, in: .capsule)
-    }
-
-    private func spotlightPill(title: String, systemImage: String) -> some View {
-        Label(title, systemImage: systemImage)
-            .font(.caption.weight(.medium))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .glassEffect(.regular, in: .capsule)
     }
 
     // MARK: - Now Playing
 
     private var nowPlayingSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Metrics.spacingM) {
+            HStack(alignment: .top, spacing: Metrics.spacingM) {
+                VStack(alignment: .leading, spacing: Metrics.spacingXS) {
                     Text("Now Playing")
                         .font(.title3.weight(.semibold))
 
@@ -284,32 +269,50 @@ struct GalleryView: View {
                 .buttonStyle(.glass)
                 .controlSize(.regular)
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, Metrics.spacingXL)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(Array(engine.activeWallpapers.keys.sorted()), id: \.self) { displayID in
-                        if let wp = engine.activeWallpapers[displayID] {
-                            nowPlayingCard(displayID: displayID, wallpaper: wp)
-                        }
+                HStack(spacing: Metrics.spacingM) {
+                    ForEach(orderedNowPlaying, id: \.displayID) { entry in
+                        nowPlayingCard(displayID: entry.displayID, wallpaper: entry.wallpaper)
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 6)
+                .padding(.horizontal, Metrics.spacingXL)
+                .padding(.vertical, Metrics.spacingXS)
+            }
+            .mask {
+                HStack(spacing: 0) {
+                    LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                        .frame(width: Metrics.spacingXL)
+                    Rectangle().fill(.black)
+                    LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                        .frame(width: Metrics.spacingXL)
+                }
             }
         }
-        .padding(.top, 2)
+    }
+
+    private var orderedNowPlaying: [(displayID: String, wallpaper: Wallpaper)] {
+        let ordered = displayManager.displays.compactMap { display -> (String, Wallpaper)? in
+            guard let wp = engine.activeWallpapers[display.id] else { return nil }
+            return (display.id, wp)
+        }
+        if !ordered.isEmpty { return ordered }
+        // Fallback: if displayManager hasn't populated for some reason, use sorted keys.
+        return engine.activeWallpapers.keys.sorted().compactMap { key in
+            engine.activeWallpapers[key].map { (key, $0) }
+        }
     }
 
     private func nowPlayingCard(displayID: String, wallpaper: Wallpaper) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Metrics.spacingM) {
             Button {
                 withAnimation(.spring(duration: 0.35, bounce: 0.1)) {
                     selectedWallpaper = wallpaper
                 }
             } label: {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: Metrics.spacingS) {
+                    HStack(spacing: Metrics.spacingS) {
                         Image(systemName: "display")
                             .font(.title3)
                             .foregroundStyle(.tint)
@@ -317,23 +320,23 @@ struct GalleryView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(displayName(for: displayID))
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.caption.weight(.semibold))
                             Text(wallpaper.title)
-                                .font(.system(size: 11))
+                                .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(2)
                         }
                     }
 
-                    HStack(spacing: 8) {
-                        spotlightPill(
+                    HStack(spacing: Metrics.spacingXS) {
+                        StatusPill(
                             title: wallpaper.isLocal ? "Imported" : "Catalog",
                             systemImage: wallpaper.isLocal ? "folder" : "sparkles.rectangle.stack"
                         )
 
                         if let duration = wallpaper.duration {
-                            spotlightPill(
-                                title: String(format: "%.0fs loop", duration),
+                            StatusPill(
+                                title: String(format: "%.0fs", duration),
                                 systemImage: "clock"
                             )
                         }
@@ -364,18 +367,25 @@ struct GalleryView: View {
                     )
             }
         }
-        .padding(14)
-        .glassEffect(.regular, in: .rect(cornerRadius: 18))
+        .padding(Metrics.spacingL)
+        .background {
+            RoundedRectangle(cornerRadius: Metrics.radiusL, style: .continuous)
+                .fill(.regularMaterial)
+                .overlay {
+                    RoundedRectangle(cornerRadius: Metrics.radiusL, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                }
+        }
     }
 
     private func displayName(for id: String) -> String {
-        engine.displays.first(where: { $0.id == id })?.localizedName ?? "Display"
+        displayManager.displays.first(where: { $0.id == id })?.localizedName ?? "Display"
     }
 
     // MARK: - Tag strip
 
     private var tagFilterStrip: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Metrics.spacingM) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(searchQuery.isEmpty ? "Filter by vibe" : "Refine your search")
@@ -387,27 +397,31 @@ struct GalleryView: View {
 
                 Spacer()
 
-                Text("\(filteredWallpapers.count) shown")
-                    .font(.caption.weight(.medium))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .glassEffect(.regular, in: .capsule)
+                StatusPill(title: "\(filteredWallpapers.count) shown")
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, Metrics.spacingXL)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: Metrics.spacingS) {
                     tagChip(title: "All", tag: "")
                     ForEach(catalog.allTags, id: \.self) { tag in
                         tagChip(title: tag, tag: tag)
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 8)
+                .padding(.horizontal, Metrics.spacingXL)
+                .padding(.bottom, Metrics.spacingS)
             }
         }
-        .padding(.top, 4)
-        .background(Color.clear)
+        .padding(.top, Metrics.spacingM)
+        .background {
+            Rectangle()
+                .fill(.regularMaterial)
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(Color.primary.opacity(0.08))
+                        .frame(height: 0.5)
+                }
+        }
     }
 
     private func tagChip(title: String, tag: String) -> some View {
@@ -418,9 +432,9 @@ struct GalleryView: View {
             }
         } label: {
             Text(title)
-                .font(.system(size: 12, weight: .medium))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .font(.caption.weight(.medium))
+                .padding(.horizontal, Metrics.spacingM)
+                .padding(.vertical, Metrics.spacingXS + 2)
         }
         .buttonStyle(.plain)
         .glassEffect(
@@ -435,7 +449,7 @@ struct GalleryView: View {
     @ViewBuilder
     private func detailPane(for wallpaper: Wallpaper) -> some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
+            HStack(spacing: Metrics.spacingM) {
                 Button {
                     withAnimation(.spring(duration: 0.35, bounce: 0.05)) {
                         selectedWallpaper = nil
@@ -454,16 +468,16 @@ struct GalleryView: View {
                 Spacer()
 
                 if activeWallpaperIDs.contains(wallpaper.id) {
-                    Label("Live on your desktop", systemImage: "play.circle.fill")
-                        .font(.caption.weight(.medium))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .glassEffect(.regular.tint(.green.opacity(0.28)), in: .capsule)
+                    StatusPill(
+                        title: "Live on your desktop",
+                        systemImage: "play.circle.fill",
+                        tint: .green
+                    )
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
+            .padding(.horizontal, Metrics.spacingXL)
+            .padding(.top, Metrics.spacingM)
+            .padding(.bottom, Metrics.spacingS)
 
             WallpaperDetailView(wallpaper: wallpaper) {
                 withAnimation(.spring(duration: 0.35, bounce: 0.05)) {
@@ -490,89 +504,63 @@ struct GalleryView: View {
     }
 
     private var emptyStateView: some View {
-        VStack(spacing: 20) {
-            Spacer()
-
-            VStack(spacing: 22) {
-                Image(systemName: "sparkles.rectangle.stack")
-                    .font(.system(size: 56, weight: .light))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.tint)
-
-                VStack(spacing: 6) {
-                    Text(searchQuery.isEmpty ? "Start Your Collection" : "No Matches")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-
-                    Text(searchQuery.isEmpty
-                         ? "Import a video from your Mac, or drop an MP4 or MOV onto this window."
-                         : "Try a different search term or clear the active tag filter.")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 380)
+        ContentUnavailableView {
+            Label(
+                searchQuery.isEmpty ? "Start Your Collection" : "No Matches",
+                systemImage: searchQuery.isEmpty ? "sparkles.rectangle.stack" : "magnifyingglass"
+            )
+        } description: {
+            Text(searchQuery.isEmpty
+                 ? "Import a video from your Mac, or drop an MP4 or MOV onto this window."
+                 : "Try a different search term or clear the active tag filter.")
+        } actions: {
+            if searchQuery.isEmpty {
+                Button {
+                    openWindow(id: "import")
+                } label: {
+                    Label("Import Wallpaper", systemImage: "square.and.arrow.down")
                 }
-
-                HStack(spacing: 10) {
-                    spotlightPill(title: "MP4 + MOV", systemImage: "film")
-                    spotlightPill(title: "Hover previews", systemImage: "cursorarrow.motionlines")
-                    spotlightPill(title: "Multi-display", systemImage: "display.2")
-                }
-
-                if searchQuery.isEmpty {
-                    Button {
-                        openWindow(id: "import")
-                    } label: {
-                        Label("Import Wallpaper", systemImage: "square.and.arrow.down")
-                    }
-                    .buttonStyle(.glassProminent)
-                    .controlSize(.large)
-                    .keyboardShortcut(.defaultAction)
-                }
+                .buttonStyle(.glassProminent)
+                .controlSize(.large)
+                .keyboardShortcut(.defaultAction)
             }
-            .padding(30)
-            .background {
-                RoundedRectangle(cornerRadius: 30, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.74),
-                                Color(nsColor: .windowBackgroundColor).opacity(0.92)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 30, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.32), lineWidth: 1)
-                    }
-                    .shadow(color: .black.opacity(0.08), radius: 18, x: 0, y: 12)
-            }
-
-            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(40)
+        .padding(Metrics.spacingXXL)
     }
 
     // MARK: - Drop target overlay
 
     private var dropTargetOverlay: some View {
         ZStack {
-            Color.black.opacity(0.35)
+            Rectangle()
+                .fill(.ultraThinMaterial)
 
-            VStack(spacing: 14) {
+            Rectangle()
+                .fill(Color.accentColor.opacity(0.18))
+
+            VStack(spacing: Metrics.spacingM) {
                 Image(systemName: "square.and.arrow.down.on.square.fill")
                     .font(.system(size: 56, weight: .light))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.tint)
 
                 Text("Drop to Import")
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
+
+                Text("MP4 or MOV")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .padding(40)
-            .glassEffect(.regular.tint(.accentColor.opacity(0.5)), in: .rect(cornerRadius: 20))
+            .padding(Metrics.spacingXXL)
+            .background {
+                RoundedRectangle(cornerRadius: Metrics.radiusL, style: .continuous)
+                    .fill(.regularMaterial)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Metrics.radiusL, style: .continuous)
+                            .strokeBorder(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+                    }
+            }
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)

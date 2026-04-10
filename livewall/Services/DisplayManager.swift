@@ -14,6 +14,8 @@ struct DisplayInfo: Identifiable, Equatable {
 }
 
 final class DisplayManager: ObservableObject {
+    static let shared = DisplayManager()
+
     @Published var displays: [DisplayInfo] = []
 
     init() {

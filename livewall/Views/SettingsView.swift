@@ -2,9 +2,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject private var settings = SettingsManager.shared
-
-    private let engine = WallpaperEngine.shared
-    private let displayManager = DisplayManager()
+    @ObservedObject private var engine = WallpaperEngine.shared
+    @ObservedObject private var displayManager = DisplayManager.shared
 
     var body: some View {
         ZStack {
@@ -27,12 +26,12 @@ struct SettingsView: View {
                     }
             }
         }
-        .frame(minWidth: 480, minHeight: 340)
+        .frame(minWidth: 520, minHeight: 360)
     }
 
     private var generalTab: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: Metrics.spacingXL) {
                 settingsHero(
                     title: "Playback, without the clutter.",
                     detail: "Keep LiveWall responsive, battery-aware, and quietly present in the background.",
@@ -72,27 +71,28 @@ struct SettingsView: View {
                     )
                 }
             }
-            .padding(24)
+            .padding(Metrics.spacingXXL)
         }
     }
 
     private var displaysTab: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: Metrics.spacingXL) {
                 settingsHero(
                     title: "Displays at a glance.",
                     detail: "See what is connected, what is playing, and refresh the layout when your setup changes.",
                     systemImage: "display.2"
                 )
 
-                HStack {
-                    settingsStatusPill(
+                HStack(spacing: Metrics.spacingS) {
+                    StatusPill(
                         title: "\(displayManager.displays.count) connected",
                         systemImage: "display"
                     )
-                    settingsStatusPill(
+                    StatusPill(
                         title: "\(engine.activeWallpapers.count) active",
-                        systemImage: "play.circle.fill"
+                        systemImage: "play.circle.fill",
+                        tint: engine.activeWallpapers.isEmpty ? nil : .green
                     )
 
                     Spacer()
@@ -103,7 +103,7 @@ struct SettingsView: View {
                     } label: {
                         Label("Refresh", systemImage: "arrow.clockwise")
                     }
-                    .buttonStyle(.glassProminent)
+                    .buttonStyle(.glass)
                     .controlSize(.regular)
                 }
 
@@ -114,23 +114,22 @@ struct SettingsView: View {
                         description: Text("Connect a display and tap Refresh.")
                     )
                     .frame(maxWidth: .infinity)
+                    .padding(.vertical, Metrics.spacingXXL)
                 } else {
-                    VStack(spacing: 10) {
+                    VStack(spacing: Metrics.spacingS) {
                         ForEach(displayManager.displays) { display in
                             displayRow(display)
                         }
                     }
-                    .padding(6)
-                    .glassEffect(.regular, in: .rect(cornerRadius: 22))
                 }
             }
-            .padding(24)
+            .padding(Metrics.spacingXXL)
         }
     }
 
     private var aboutTab: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: Metrics.spacingXL) {
                 settingsHero(
                     title: "LiveWall",
                     detail: "A lightweight live wallpaper app for macOS that keeps the desktop cinematic without turning the rest of the system into noise.",
@@ -164,20 +163,20 @@ struct SettingsView: View {
                     )
                 }
 
-                HStack(spacing: 10) {
-                    settingsStatusPill(title: "Version 1.0", systemImage: "app.badge")
-                    settingsStatusPill(title: "macOS 26+", systemImage: "desktopcomputer")
+                HStack(spacing: Metrics.spacingS) {
+                    StatusPill(title: "Version 1.0", systemImage: "app.badge")
+                    StatusPill(title: "macOS 26+", systemImage: "desktopcomputer")
                 }
             }
-            .padding(24)
+            .padding(Metrics.spacingXXL)
         }
     }
 
     private func settingsHero(title: String, detail: String, systemImage: String) -> some View {
-        HStack(alignment: .top, spacing: 18) {
-            VStack(alignment: .leading, spacing: 10) {
+        HStack(alignment: .top, spacing: Metrics.spacingL) {
+            VStack(alignment: .leading, spacing: Metrics.spacingS) {
                 Text(title)
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .font(.largeTitle.weight(.bold))
 
                 Text(detail)
                     .font(.body)
@@ -190,32 +189,23 @@ struct SettingsView: View {
             Image(systemName: systemImage)
                 .font(.system(size: 28, weight: .semibold))
                 .foregroundStyle(.tint)
-                .padding(18)
-                .glassEffect(.regular, in: .rect(cornerRadius: 20))
+                .padding(Metrics.spacingL)
+                .glassEffect(.regular, in: .rect(cornerRadius: Metrics.radiusM))
         }
-        .padding(22)
+        .padding(Metrics.spacingXL)
         .background {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.70),
-                            Color(nsColor: .windowBackgroundColor).opacity(0.92)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+            RoundedRectangle(cornerRadius: Metrics.radiusL, style: .continuous)
+                .fill(.regularMaterial)
                 .overlay {
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.30), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: Metrics.radiusL, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
                 }
         }
     }
 
     private func settingsSection<Content: View>(title: String, detail: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Metrics.spacingM) {
+            VStack(alignment: .leading, spacing: Metrics.spacingXS) {
                 Text(title)
                     .font(.headline)
                 Text(detail)
@@ -226,51 +216,50 @@ struct SettingsView: View {
             VStack(spacing: 0) {
                 content()
             }
-            .padding(6)
-            .glassEffect(.regular, in: .rect(cornerRadius: 22))
+            .background {
+                RoundedRectangle(cornerRadius: Metrics.radiusL, style: .continuous)
+                    .fill(Color.primary.opacity(0.04))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Metrics.radiusL, style: .continuous)
+                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                    }
+            }
         }
     }
 
     private func preferenceRow(title: String, detail: String, systemImage: String, isOn: Binding<Bool>) -> some View {
         Toggle(isOn: isOn) {
-            HStack(alignment: .top, spacing: 14) {
+            HStack(alignment: .top, spacing: Metrics.spacingM) {
                 Image(systemName: systemImage)
                     .font(.title3)
                     .foregroundStyle(.tint)
                     .frame(width: 26)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Metrics.spacingXS) {
                     Text(title)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.callout.weight(.semibold))
                     Text(detail)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .padding(14)
+            .padding(Metrics.spacingL)
         }
         .toggleStyle(.switch)
     }
 
-    private func settingsStatusPill(title: String, systemImage: String) -> some View {
-        Label(title, systemImage: systemImage)
-            .font(.caption.weight(.medium))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .glassEffect(.regular, in: .capsule)
-    }
-
     private func displayRow(_ display: DisplayInfo) -> some View {
-        HStack(spacing: 12) {
+        let activeWP = engine.activeWallpapers[display.id]
+        return HStack(spacing: Metrics.spacingM) {
             Image(systemName: "display")
                 .font(.title3)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(activeWP == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(display.localizedName)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.callout.weight(.medium))
                 Text(String(format: "%.0f × %.0f", display.resolution.width, display.resolution.height))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -278,7 +267,7 @@ struct SettingsView: View {
 
             Spacer()
 
-            if let activeWP = engine.activeWallpapers[display.id] {
+            if let activeWP {
                 Label(activeWP.title, systemImage: "play.circle.fill")
                     .labelStyle(.titleAndIcon)
                     .font(.caption)
@@ -290,26 +279,38 @@ struct SettingsView: View {
                     .foregroundStyle(.tertiary)
             }
         }
-        .padding(14)
-        .glassEffect(.regular, in: .rect(cornerRadius: 16))
+        .padding(Metrics.spacingL)
+        .background {
+            RoundedRectangle(cornerRadius: Metrics.radiusM, style: .continuous)
+                .fill(activeWP == nil ? Color.primary.opacity(0.04) : Palette.activeGreenTint)
+                .overlay {
+                    RoundedRectangle(cornerRadius: Metrics.radiusM, style: .continuous)
+                        .strokeBorder(
+                            activeWP == nil ? Color.primary.opacity(0.08) : Color.green.opacity(0.35),
+                            lineWidth: 1
+                        )
+                }
+        }
     }
 
     private func aboutRow(title: String, detail: String, systemImage: String) -> some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: Metrics.spacingM) {
             Image(systemName: systemImage)
                 .font(.title3)
                 .foregroundStyle(.tint)
                 .frame(width: 26)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Metrics.spacingXS) {
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.callout.weight(.semibold))
                 Text(detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+
+            Spacer(minLength: 0)
         }
-        .padding(14)
+        .padding(Metrics.spacingL)
     }
 }

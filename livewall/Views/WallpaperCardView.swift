@@ -30,26 +30,17 @@ struct WallpaperCardView: View {
                 metadataArea
             }
             .background {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(nsColor: .controlBackgroundColor),
-                                Color(nsColor: .windowBackgroundColor)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
+                RoundedRectangle(cornerRadius: Metrics.radiusL, style: .continuous)
+                    .fill(.regularMaterial)
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: Metrics.radiusL, style: .continuous)
                     .strokeBorder(
-                        isHovering ? Color.white.opacity(0.32) : Color.primary.opacity(0.06),
+                        isHovering ? Color.primary.opacity(0.18) : Color.primary.opacity(0.06),
                         lineWidth: 1
                     )
             }
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Metrics.radiusL, style: .continuous))
             .compositingGroup()
             .shadow(color: .black.opacity(isHovering ? 0.14 : 0.06), radius: isHovering ? 16 : 8, x: 0, y: isHovering ? 8 : 4)
             .scaleEffect(isHovering ? 1.01 : 1)
@@ -70,7 +61,7 @@ struct WallpaperCardView: View {
     // MARK: - Thumbnail area
 
     private var thumbnailArea: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack {
             ZStack {
                 staticThumbnail
                     .grayscale(isStale ? 0.75 : 0)
@@ -92,39 +83,25 @@ struct WallpaperCardView: View {
                         isPlaying: true
                     )
                     .frame(maxWidth: .infinity)
-                    .frame(height: 140)
+                    .frame(height: 154)
                     .clipped()
                     .transition(.opacity.animation(.easeInOut(duration: 0.25)))
                 }
             }
 
             VStack {
-                HStack {
+                HStack(alignment: .top) {
                     sourceBadge
                     Spacer(minLength: 0)
+                    if isActive && !isStale {
+                        ActiveBadge(compact: true)
+                    } else if isStale {
+                        staleBadge
+                    }
                 }
-
                 Spacer(minLength: 0)
             }
-            .padding(8)
-
-            if isStale {
-                staleOverlay
-            }
-
-            if isActive && !isStale {
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 10, weight: .semibold))
-                    Text("Active")
-                        .font(.system(size: 10, weight: .semibold))
-                }
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .glassEffect(.regular.tint(.green.opacity(0.35)), in: .capsule)
-                .padding(8)
-            }
+            .padding(Metrics.spacingS)
         }
         .frame(height: 154)
     }
@@ -155,25 +132,19 @@ struct WallpaperCardView: View {
         }
     }
 
-    private var staleOverlay: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 10, weight: .semibold))
-            Text("Missing")
-                .font(.system(size: 10, weight: .semibold))
-        }
-        .foregroundStyle(.primary)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .glassEffect(.regular.tint(.orange.opacity(0.45)), in: .capsule)
-        .padding(8)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    private var staleBadge: some View {
+        Label("Missing", systemImage: "exclamationmark.triangle.fill")
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(.primary)
+            .padding(.horizontal, Metrics.spacingS)
+            .padding(.vertical, 4)
+            .glassEffect(.regular.tint(.orange.opacity(0.45)), in: .capsule)
     }
 
     private var sourceBadge: some View {
         Label(wallpaper.isLocal ? "Imported" : wallpaper.resolution.rawValue, systemImage: wallpaper.isLocal ? "folder.fill" : "sparkles.rectangle.stack.fill")
             .font(.system(size: 10, weight: .semibold))
-            .padding(.horizontal, 8)
+            .padding(.horizontal, Metrics.spacingS)
             .padding(.vertical, 4)
             .glassEffect(.regular.tint(.black.opacity(0.18)), in: .capsule)
             .foregroundStyle(.primary)
@@ -183,7 +154,7 @@ struct WallpaperCardView: View {
     private var placeholderView: some View {
         ZStack {
             Rectangle()
-                .fill(Color(nsColor: .quaternaryLabelColor))
+                .fill(.quaternary)
             Image(systemName: "film.stack")
                 .font(.system(size: 28, weight: .light))
                 .foregroundStyle(.tertiary)
@@ -195,21 +166,18 @@ struct WallpaperCardView: View {
     // MARK: - Metadata area
 
     private var metadataArea: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Metrics.spacingS) {
             Text(wallpaper.title)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.callout.weight(.semibold))
                 .lineLimit(2)
                 .foregroundStyle(.primary)
 
-            HStack(alignment: .center) {
-                HStack(spacing: 6) {
-                    if let duration = wallpaper.duration {
-                        cardInfoPill(title: String(format: "%.0fs", duration), systemImage: "clock")
-                    }
-                    if previewURL != nil && !isActive {
-                        cardInfoPill(title: "Preview", systemImage: "play.circle")
-                            .opacity(isHovering ? 0.55 : 1)
-                    }
+            HStack(alignment: .center, spacing: Metrics.spacingM) {
+                if let duration = wallpaper.duration {
+                    cardMetaLabel(title: String(format: "%.0fs", duration), systemImage: "clock")
+                }
+                if previewURL != nil && !isActive {
+                    cardMetaLabel(title: "Preview", systemImage: "play.circle")
                 }
 
                 Spacer(minLength: 0)
@@ -222,11 +190,11 @@ struct WallpaperCardView: View {
                 }
             }
         }
-        .padding(12)
+        .padding(Metrics.spacingM)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func cardInfoPill(title: String, systemImage: String) -> some View {
+    private func cardMetaLabel(title: String, systemImage: String) -> some View {
         Label(title, systemImage: systemImage)
             .font(.system(size: 10, weight: .medium))
             .foregroundStyle(.secondary)

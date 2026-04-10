@@ -9,10 +9,7 @@ enum WallpaperApplyScope {
 }
 
 final class WallpaperEngine: ObservableObject {
-    static let shared: WallpaperEngine = {
-        let dm = DisplayManager()
-        return WallpaperEngine(displayManager: dm)
-    }()
+    static let shared = WallpaperEngine(displayManager: .shared)
 
     @Published var activeWallpapers: [String: Wallpaper] = [:]
     @Published var isPaused = false
@@ -33,7 +30,7 @@ final class WallpaperEngine: ObservableObject {
     }
 
     static func makeDefault() -> WallpaperEngine {
-        WallpaperEngine(displayManager: DisplayManager())
+        WallpaperEngine(displayManager: .shared)
     }
 
     // MARK: - Apply / set

@@ -14,17 +14,17 @@ struct ImportView: View {
             AppAmbientBackground()
 
             VStack(spacing: 0) {
-                Spacer()
+                Spacer(minLength: 0)
 
-                VStack(spacing: 22) {
+                VStack(spacing: Metrics.spacingL) {
                     Image(systemName: "square.and.arrow.down.on.square")
                         .font(.system(size: 56, weight: .light))
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(.tint)
 
-                    VStack(spacing: 8) {
+                    VStack(spacing: Metrics.spacingS) {
                         Text("Import a Wallpaper")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .font(.largeTitle.weight(.bold))
 
                         Text("Select an MP4 or MOV video file from your Mac and LiveWall will import it into your personal library.")
                             .font(.callout)
@@ -33,59 +33,61 @@ struct ImportView: View {
                             .frame(maxWidth: 360)
                     }
 
-                    HStack(spacing: 10) {
-                        importPill(title: "MP4 + MOV", systemImage: "film")
-                        importPill(title: "Applies to all displays", systemImage: "display.2")
-                        importPill(title: "Local-first", systemImage: "folder.fill")
-                    }
-
-                    if isImporting {
-                        ProgressView("Importing…")
-                            .controlSize(.regular)
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 12)
-                            .glassEffect(.regular, in: .capsule)
-                    } else {
-                        Button {
-                            isShowingFilePicker = true
-                        } label: {
-                            Label("Choose Video File", systemImage: "folder")
-                                .frame(minWidth: 180)
-                        }
-                        .buttonStyle(.glassProminent)
-                        .controlSize(.large)
-                        .keyboardShortcut(.defaultAction)
+                    HStack(spacing: Metrics.spacingS) {
+                        StatusPill(title: "MP4 + MOV", systemImage: "film")
+                        StatusPill(title: "Applies to all displays", systemImage: "display.2")
+                        StatusPill(title: "Local-first", systemImage: "folder.fill")
                     }
 
                     Text("Tip: short seamless loops feel best as wallpapers.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+
+                    VStack(spacing: Metrics.spacingM) {
+                        if isImporting {
+                            ProgressView("Importing…")
+                                .controlSize(.regular)
+                                .padding(.horizontal, Metrics.spacingL)
+                                .padding(.vertical, Metrics.spacingM)
+                                .glassEffect(.regular, in: .capsule)
+                        } else {
+                            Button {
+                                isShowingFilePicker = true
+                            } label: {
+                                Label("Choose Video File", systemImage: "folder")
+                                    .frame(minWidth: 200)
+                            }
+                            .buttonStyle(.glassProminent)
+                            .controlSize(.large)
+                            .keyboardShortcut(.defaultAction)
+
+                            Button("Cancel") {
+                                dismiss()
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.secondary)
+                            .font(.callout)
+                            .keyboardShortcut(.cancelAction)
+                        }
+                    }
                 }
-                .padding(40)
+                .padding(Metrics.spacingXXL + Metrics.spacingM)
                 .frame(maxWidth: 520)
                 .background {
-                    RoundedRectangle(cornerRadius: 30, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.72),
-                                    Color(nsColor: .windowBackgroundColor).opacity(0.92)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                    RoundedRectangle(cornerRadius: Metrics.radiusXL, style: .continuous)
+                        .fill(.regularMaterial)
                         .overlay {
-                            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.34), lineWidth: 1)
+                            RoundedRectangle(cornerRadius: Metrics.radiusXL, style: .continuous)
+                                .strokeBorder(Color.primary.opacity(0.10), lineWidth: 1)
                         }
                         .shadow(color: .black.opacity(0.08), radius: 20, x: 0, y: 12)
                 }
 
-                Spacer()
+                Spacer(minLength: 0)
             }
+            .padding(Metrics.spacingXL)
         }
-        .frame(minWidth: 480, minHeight: 380)
+        .frame(minWidth: 520, minHeight: 440)
         .fileImporter(
             isPresented: $isShowingFilePicker,
             allowedContentTypes: [.mpeg4Movie, .quickTimeMovie, .video],
@@ -108,14 +110,6 @@ struct ImportView: View {
         }
     }
 
-    private func importPill(title: String, systemImage: String) -> some View {
-        Label(title, systemImage: systemImage)
-            .font(.caption.weight(.medium))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .glassEffect(.regular, in: .capsule)
-    }
-
     private func importFile(_ url: URL) async {
         isImporting = true
         defer { isImporting = false }
@@ -127,7 +121,6 @@ struct ImportView: View {
             }
         }
 
-        // addLocalWallpaper surfaces errors via the global presenter on failure.
         if let wallpaper = await catalog.addLocalWallpaper(fileURL: url) {
             engine.apply(wallpaper, scope: .allDisplays)
             dismiss()
